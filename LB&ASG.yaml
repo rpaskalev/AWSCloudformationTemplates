@@ -127,4 +127,4 @@ Resources:
       Port: 80
       Protocol: HTTP
       UnhealthyThresholdCount: 5
-      VpcId: !Ref myVPC
+      VpcId: !Ref myVPCgit 
