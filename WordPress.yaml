@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Wordpress template'
+Description: 'Wordpress template "edition 3 with no changes"
 Parameters:
   SnapToRestore:
     Type: String
