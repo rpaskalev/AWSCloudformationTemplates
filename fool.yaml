@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CFN Init Demo - Just create Metadata Template
+
+Resources:
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 128.168.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+       - Key: name
+         Value: radyCloudFormationVPC
+  mySubnets:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone: us-east-1a
+        VpcId: !Ref myVPC
+        CidrBlock: 128.168.10.0/24
+        MapPublicIpOnLaunch: true
+        Tags:
+          - Key: name
+            Value: radySubnet
+  mySubnets2:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone: us-east-1b
+        VpcId: !Ref myVPC
+        CidrBlock: 128.168.20.0/24
+        MapPublicIpOnLaunch: true
+        Tags:
+          - Key: name
+            Value: radySubnet2
+  myRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: name
+          Value: route table for IGW
+  myRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref myRouteTable
+      DestinationCidrBlock: 0.0.0.0/0 
+      GatewayId: !Ref myInternetGateway 
+  myEC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate 
+    Properties:
+      LaunchTemplateData: 
+        BlockDeviceMappings: 
+          - Ebs:
+              VolumeSize: '8'
+              VolumeType: gp2
+              DeleteOnTermination: true
+            DeviceName: /dev/xvdcz
+        KeyName: rady_key
+        DisableApiTermination: false
+        ImageId: ami-08f3d892de259504d
+        InstanceType: t2.micro
+        #DisableApiTermination: 'true'
+        Monitoring: 
+          Enabled: true 
+        SecurityGroupIds:
+          - !Ref MySg
+        UserData: !Base64 |
+          #!/bin/bash -ex
+          # put your script here
+      LaunchTemplateName: MyLaunchTemplate
+  myGatewayAttachemnt:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myVPC
+      InternetGatewayId: !Ref myInternetGateway
+  myInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: name
+        Value: radyGwy
+  VPCGtw:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref myInternetGateway
+      VpcId: !Ref myVPC
+  eipName:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  MySg:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "Wordpress"
+        GroupName: rady-sg
+        VpcId: !Ref myVPC
+        SecurityGroupEgress:
+          - CidrIp: '0.0.0.0/0'
+            IpProtocol: 'tcp'
+            ToPort: '80'
+            FromPort: '80'
+        SecurityGroupIngress:
+          - CidrIp: '0.0.0.0/0'
+            IpProtocol: 'tcp'
+            ToPort: '80'
+            FromPort: '80'
+  myASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: myASG
+      #AvailabilityZones: 
+        #- us-east-1a
+        #- us-east-1b
+      MinSize: "1"
+      MaxSize: "2"
+      TargetGroupARNs: 
+        - Ref: ALBTargetGroup
+      #LoadBalancerNames: !Ref "MyLoadBalancer"
+      DesiredCapacity: "2"
+      HealthCheckGracePeriod: '200'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref myEC2LaunchTemplate
+        Version: !GetAtt myEC2LaunchTemplate.LatestVersionNumber
+      VPCZoneIdentifier:
+        - !Ref mySubnets  
+        - !Ref mySubnets2
+  MyLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: RadyLB
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref MySg
+      Subnets: 
+        - !Ref mySubnets  
+        - !Ref mySubnets2
+      Type: application
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref MyLoadBalancer
+      Port: '80'
+      Protocol: HTTP
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      TargetType: instance 
+      VpcId: !Ref myVPC
+
+      #AvailabilityZones: 
+       # Fn::GetAZs: ""
+      # CrossZone: true 
+       #Instances:
+       # - Ref: logical name of AWS::EC2::Instance resource 1
+       # - Ref: logical name of AWS::EC2::Instance resource 2
+      #Listeners:
+       # - LoadBalancerPort: 'all'
+        #  InstancePort: 'all'
+         # Protocol: HTTP
+      #HealthCheck:
+       #   Target: HTTP:80/
+        #  HealthyThreshold: '3'
+         # UnhealthyThreshold: '5'
+         # Interval: '30'
+          #Timeout: '5'
+
+
+      
+    
+    
