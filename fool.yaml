@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CFN Init Demo - Just create Metadata Template
+Description: From Scratch to create ELB and ASG
 
 Resources:
   myVPC:
